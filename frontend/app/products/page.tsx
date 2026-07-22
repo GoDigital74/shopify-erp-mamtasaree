@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Page, Layout, Card, ResourceList, ResourceItem, Text, SkeletonPage, SkeletonBodyText, InlineStack, BlockStack, Button, Avatar } from '@shopify/polaris';
+import { Page, Layout, Card, ResourceList, ResourceItem, Text, SkeletonPage, SkeletonBodyText, InlineStack, BlockStack, Button, Thumbnail, Badge } from '@shopify/polaris';
+import { ImageIcon } from '@shopify/polaris-icons';
 import { authenticatedFetch } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
@@ -50,16 +51,21 @@ export default function ProductsPage() {
               resourceName={{ singular: 'product', plural: 'products' }}
               items={products}
               renderItem={(item) => {
-                const { id, title, variants, imageUrl } = item;
-                const variantCount = variants?.length || 0;
-                
+                const { id, title, variants, imageUrl, status } = item;
+                const firstVariant = variants?.[0];
+                const price = firstVariant?.price ? `$${parseFloat(firstVariant.price).toFixed(2)}` : null;
+
                 const media = (
-                  <Avatar customer size="md" name={title} source={imageUrl || undefined} />
+                  <Thumbnail
+                    source={imageUrl || ImageIcon}
+                    alt={title}
+                    size="medium"
+                  />
                 );
 
                 return (
-                  <ResourceItem 
-                    id={id} 
+                  <ResourceItem
+                    id={id}
                     media={media}
                     url={`/products/${id}`}
                     accessibilityLabel={`View details for ${title}`}
@@ -67,14 +73,20 @@ export default function ProductsPage() {
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
                         <Text variant="bodyMd" fontWeight="bold" as="h3">{title}</Text>
-                        <Text variant="bodySm" tone="subdued" as="span">{variantCount} variant(s)</Text>
+                        <InlineStack gap="200">
+                          {price && <Text variant="bodySm" tone="subdued" as="span">{price}</Text>}
+                          <Badge tone={status === 'ACTIVE' ? 'success' : 'attention'}>
+                            {status === 'ACTIVE' ? 'Active' : 'Draft'}
+                          </Badge>
+                        </InlineStack>
                       </BlockStack>
-                      
-                      <Button 
-                        tone="critical" 
-                        variant="plain" 
-                        onClick={() => {
-                          if (confirm("Are you sure you want to delete this product from Shopify?")) {
+
+                      <Button
+                        tone="critical"
+                        variant="plain"
+                        onClick={(e) => {
+                          e?.stopPropagation?.();
+                          if (confirm('Are you sure you want to delete this product from Shopify?')) {
                             authenticatedFetch(`/api/products/${id}`, { method: 'DELETE' })
                               .then(() => window.location.reload());
                           }

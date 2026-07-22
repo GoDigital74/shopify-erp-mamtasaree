@@ -194,7 +194,6 @@ app.get('/api/health', verifyShopifyToken, async (req: Request, res: Response) =
 
 import ordersRoute from './routes/orders';
 import inventoryRoute from './routes/inventory';
-import customersRoute from './routes/customers';
 
 app.use('/api/products', verifyShopifyToken, productsRoute);
 app.use('/api/orders', verifyShopifyToken, ordersRoute);
