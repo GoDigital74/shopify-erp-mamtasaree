@@ -32,8 +32,8 @@ router.post('/', async (req: Request, res: Response) => {
     const client = new shopify.clients.Graphql({ session });
     
     const query = `
-      mutation productCreate($input: ProductInput!) {
-        productCreate(input: $input) {
+      mutation productSet($input: ProductSetInput!) {
+        productSet(input: $input) {
           product {
             id
             title
@@ -71,7 +71,7 @@ router.post('/', async (req: Request, res: Response) => {
     };
 
     const response = await client.request(query, { variables });
-    const productData = (response.data as any).productCreate;
+    const productData = (response.data as any).productSet;
 
     if (productData.userErrors && productData.userErrors.length > 0) {
       return res.status(400).json({ errors: productData.userErrors });
