@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Page, Layout, Card, ResourceList, ResourceItem, Text, Badge, SkeletonPage, SkeletonBodyText } from '@shopify/polaris';
+import { Page, Layout, Card, ResourceList, ResourceItem, Text, SkeletonPage, SkeletonBodyText, InlineStack, BlockStack } from '@shopify/polaris';
 import { authenticatedFetch } from '@/lib/api';
 
 export default function ProductsPage() {
@@ -28,13 +28,7 @@ export default function ProductsPage() {
   if (loading) {
     return (
       <SkeletonPage title="Products">
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <SkeletonBodyText lines={5} />
-            </Card>
-          </Layout.Section>
-        </Layout>
+        <Layout><Layout.Section><Card><SkeletonBodyText lines={5} /></Card></Layout.Section></Layout>
       </SkeletonPage>
     );
   }
@@ -48,17 +42,16 @@ export default function ProductsPage() {
               resourceName={{ singular: 'product', plural: 'products' }}
               items={products}
               renderItem={(item) => {
-                const { id, title, handle, status } = item;
-                
+                const { id, title, variants } = item;
+                const variantCount = variants?.length || 0;
                 return (
                   <ResourceItem id={id} url="#" accessibilityLabel={`View details for ${title}`}>
-                    <Text variant="bodyMd" fontWeight="bold" as="h3">
-                      {title}
-                    </Text>
-                    <div>{handle}</div>
-                    <Badge tone={status === 'active' ? 'success' : 'critical'}>
-                      {status}
-                    </Badge>
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <Text variant="bodyMd" fontWeight="bold" as="h3">{title}</Text>
+                        <Text variant="bodySm" tone="subdued" as="span">{variantCount} variant(s)</Text>
+                      </BlockStack>
+                    </InlineStack>
                   </ResourceItem>
                 );
               }}
@@ -69,3 +62,4 @@ export default function ProductsPage() {
     </Page>
   );
 }
+
