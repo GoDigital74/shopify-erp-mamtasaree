@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Page, Card, DataTable, BlockStack, Button, InlineStack, Modal, TextField, FormLayout } from '@shopify/polaris';
+import { Page, Layout, Card, IndexTable, Text, Spinner, Button, Modal, FormLayout, TextField, BlockStack } from '@shopify/polaris';
 import { authenticatedFetch } from '@/lib/api';
 
 export default function VendorsPage() {
@@ -9,56 +9,65 @@ export default function VendorsPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // New vendor form state
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  // New Vendor Form State
+  const [vendorName, setVendorName] = useState('');
+  const [vendorEmail, setVendorEmail] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchVendors();
   }, []);
 
-  const fetchVendors = async () => {
+  async function fetchVendors() {
     try {
-      setLoading(true);
       const res = await authenticatedFetch('/api/vendors');
       if (res.ok) {
         const data = await res.json();
         setVendors(data);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error('Failed to fetch vendors', err);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleCreateVendor = async () => {
-    setSubmitting(true);
+  async function handleCreateVendor() {
+    setSaving(true);
     try {
       const res = await authenticatedFetch('/api/vendors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email }),
+        body: JSON.stringify({ name: vendorName, email: vendorEmail })
       });
       if (res.ok) {
         setIsModalOpen(false);
-        setName('');
-        setEmail('');
-        fetchVendors();
+        setVendorName('');
+        setVendorEmail('');
+        fetchVendors(); // Refresh the list
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
-  };
+  }
 
-  const rows = vendors.map((vendor) => [
-    vendor.name,
-    vendor.email || 'N/A',
-    new Date(vendor.createdAt).toLocaleDateString(),
-  ]);
+  const rowMarkup = vendors.map((vendor, index) => (
+    <IndexTable.Row id={vendor.id} key={vendor.id} position={index}>
+      <IndexTable.Cell>
+        <Text variant="bodyMd" fontWeight="bold" as="span">
+          {vendor.name}
+        </Text>
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        {vendor.email || 'N/A'}
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        {new Date(vendor.createdAt).toLocaleDateString()}
+      </IndexTable.Cell>
+    </IndexTable.Row>
+  ));
 
   return (
     <Page 
@@ -68,24 +77,39 @@ export default function VendorsPage() {
         onAction: () => setIsModalOpen(true),
       }}
     >
-      <BlockStack gap="500">
-        <Card padding="0">
-          <DataTable
-            columnContentTypes={['text', 'text', 'text']}
-            headings={['Name', 'Email', 'Created']}
-            rows={rows}
-          />
-        </Card>
-      </BlockStack>
+      <Layout>
+        <Layout.Section>
+          <Card padding="0">
+            {loading ? (
+              <div style={{ padding: '2rem', textAlign: 'center' }}>
+                <Spinner size="large" />
+              </div>
+            ) : (
+              <IndexTable
+                resourceName={{ singular: 'vendor', plural: 'vendors' }}
+                itemCount={vendors.length}
+                headings={[
+                  { title: 'Name' },
+                  { title: 'Email' },
+                  { title: 'Added Date' },
+                ]}
+                selectable={false}
+              >
+                {rowMarkup}
+              </IndexTable>
+            )}
+          </Card>
+        </Layout.Section>
+      </Layout>
 
       <Modal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Add new vendor"
+        title="Add a New Vendor"
         primaryAction={{
           content: 'Save',
           onAction: handleCreateVendor,
-          loading: submitting,
+          loading: saving,
         }}
         secondaryActions={[
           {
@@ -98,15 +122,15 @@ export default function VendorsPage() {
           <FormLayout>
             <TextField
               label="Vendor Name"
-              value={name}
-              onChange={setName}
+              value={vendorName}
+              onChange={setVendorName}
               autoComplete="off"
             />
             <TextField
-              label="Email"
               type="email"
-              value={email}
-              onChange={setEmail}
+              label="Vendor Email"
+              value={vendorEmail}
+              onChange={setVendorEmail}
               autoComplete="email"
             />
           </FormLayout>
@@ -115,4 +139,3 @@ export default function VendorsPage() {
     </Page>
   );
 }
-

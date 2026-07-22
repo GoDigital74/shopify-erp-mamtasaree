@@ -1,223 +1,172 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Page, Card, DataTable, BlockStack, Button, Modal, Select, TextField, FormLayout, Badge } from '@shopify/polaris';
+import { Page, Layout, Card, IndexTable, Text, Spinner, Badge, Button, Modal, FormLayout, Select, TextField } from '@shopify/polaris';
 import { authenticatedFetch } from '@/lib/api';
 
-interface Vendor {
-  id: string;
-  name: string;
-}
-
-interface ProductVariant {
-  id: string;
-  title: string;
-}
-
-interface Product {
-  id: string;
-  title: string;
-  variants: ProductVariant[];
-}
-
-interface PurchaseOrder {
-  id: string;
-  vendor?: { name: string };
-  total: number;
-  status: string;
-  createdAt: string;
-}
-
 export default function PurchaseOrdersPage() {
-  const [pos, setPos] = useState<PurchaseOrder[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [pos, setPos] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Modal states
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isReceiveOpen, setIsReceiveOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Create form state
-  const [selectedVendor, setSelectedVendor] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [vendorId, setVendorId] = useState('');
   const [total, setTotal] = useState('');
-
-  // Receive form state
-  const [selectedPo, setSelectedPo] = useState('');
-  const [selectedVariant, setSelectedVariant] = useState('');
-  const [receiveQuantity, setReceiveQuantity] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  async function fetchData() {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [poRes, vendorRes, prodRes] = await Promise.all([
+      const [posRes, vendorsRes] = await Promise.all([
         authenticatedFetch('/api/purchase-orders'),
-        authenticatedFetch('/api/vendors'),
-        authenticatedFetch('/api/products')
+        authenticatedFetch('/api/vendors')
       ]);
       
-      if (poRes.ok) setPos(await poRes.json());
-      
-      if (vendorRes.ok) {
-        const vData: Vendor[] = await vendorRes.json();
+      if (posRes.ok) setPos(await posRes.json());
+      if (vendorsRes.ok) {
+        const vData = await vendorsRes.json();
         setVendors(vData);
-        if (vData.length > 0 && !selectedVendor) {
-          setSelectedVendor(vData[0].id);
-        }
+        if (vData.length > 0) setVendorId(vData[0].id);
       }
-
-      if (prodRes.ok) {
-        const pData: Product[] = await prodRes.json();
-        setProducts(pData);
-        const firstVar = pData[0]?.variants?.[0]?.id;
-        if (firstVar && !selectedVariant) {
-          setSelectedVariant(firstVar);
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load purchase orders data', e);
+    } catch (err) {
+      console.error('Failed to fetch POs', err);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleCreatePo = async () => {
-    if (!selectedVendor || !total) return;
-    setSubmitting(true);
+  async function handleCreatePO() {
+    setSaving(true);
     try {
       const res = await authenticatedFetch('/api/purchase-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vendorId: selectedVendor, total: parseFloat(total) }),
+        body: JSON.stringify({ vendorId, total: parseFloat(total) || 0 })
       });
       if (res.ok) {
-        setIsCreateOpen(false);
+        setIsModalOpen(false);
         setTotal('');
         fetchData();
       }
-    } catch (e) {
-      console.error('Failed to create purchase order', e);
+    } catch (err) {
+      console.error(err);
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
-  };
+  }
 
-  const handleReceivePo = async () => {
-    if (!selectedPo || !selectedVariant || !receiveQuantity) return;
-    setSubmitting(true);
+  async function handleReceivePO(id: string) {
     try {
-      const res = await authenticatedFetch(`/api/purchase-orders/${selectedPo}/receive`, {
+      // For demo, we just mark as received without specific line items.
+      // A full implementation would specify variantId and quantity.
+      const res = await authenticatedFetch(`/api/purchase-orders/${id}/receive`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ variantId: selectedVariant, quantity: parseInt(receiveQuantity, 10) }),
+        body: JSON.stringify({})
       });
       if (res.ok) {
-        setIsReceiveOpen(false);
-        setReceiveQuantity('');
         fetchData();
       }
-    } catch (e) {
-      console.error('Failed to receive inventory', e);
-    } finally {
-      setSubmitting(false);
+    } catch (err) {
+      console.error(err);
     }
-  };
+  }
 
-  const rows = pos.map((po) => [
-    po.id.substring(0, 8),
-    po.vendor?.name || 'Unknown',
-    `$${(po.total || 0).toFixed(2)}`,
-    <Badge key={po.id} tone={po.status === 'received' ? 'success' : 'attention'}>{po.status}</Badge>,
-    new Date(po.createdAt).toLocaleDateString(),
-    po.status !== 'received' ? (
-      <Button size="micro" key={`btn-${po.id}`} onClick={() => { setSelectedPo(po.id); setIsReceiveOpen(true); }}>Receive</Button>
-    ) : null
-  ]);
+  const rowMarkup = pos.map((po, index) => (
+    <IndexTable.Row id={po.id} key={po.id} position={index}>
+      <IndexTable.Cell>
+        <Text variant="bodyMd" fontWeight="bold" as="span">
+          {po.id.slice(0, 8).toUpperCase()}
+        </Text>
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        {po.vendor?.name || 'Unknown'}
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        ${po.total.toFixed(2)}
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        <Badge tone={po.status === 'received' ? 'success' : 'attention'}>
+          {po.status}
+        </Badge>
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        {po.status === 'draft' ? (
+          <Button size="micro" onClick={() => handleReceivePO(po.id)}>Mark Received</Button>
+        ) : (
+          <Text variant="bodySm" tone="subdued" as="span">{new Date(po.updatedAt).toLocaleDateString()}</Text>
+        )}
+      </IndexTable.Cell>
+    </IndexTable.Row>
+  ));
 
-  const variantOptions = products.flatMap(p => 
-    (p.variants || []).map((v) => ({
-      label: `${p.title} - ${v.title}`,
-      value: v.id
-    }))
-  );
+  const vendorOptions = vendors.map(v => ({ label: v.name, value: v.id }));
 
   return (
     <Page 
       title="Purchase Orders"
       primaryAction={{
         content: 'Create PO',
-        onAction: () => setIsCreateOpen(true),
+        onAction: () => setIsModalOpen(true),
+        disabled: vendors.length === 0,
       }}
     >
-      <BlockStack gap="500">
-        <Card padding="0">
-          <DataTable
-            columnContentTypes={['text', 'text', 'numeric', 'text', 'text', 'text']}
-            headings={['PO ID', 'Vendor', 'Total', 'Status', 'Date', 'Action']}
-            rows={rows}
-          />
-        </Card>
-      </BlockStack>
+      <Layout>
+        <Layout.Section>
+          <Card padding="0">
+            {loading ? (
+              <div style={{ padding: '2rem', textAlign: 'center' }}>
+                <Spinner size="large" />
+              </div>
+            ) : (
+              <IndexTable
+                resourceName={{ singular: 'purchase order', plural: 'purchase orders' }}
+                itemCount={pos.length}
+                headings={[
+                  { title: 'PO ID' },
+                  { title: 'Vendor' },
+                  { title: 'Total Amount' },
+                  { title: 'Status' },
+                  { title: 'Action / Date' },
+                ]}
+                selectable={false}
+              >
+                {rowMarkup}
+              </IndexTable>
+            )}
+          </Card>
+        </Layout.Section>
+      </Layout>
 
       <Modal
-        open={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         title="Create Purchase Order"
         primaryAction={{
           content: 'Save',
-          onAction: handleCreatePo,
-          loading: submitting,
+          onAction: handleCreatePO,
+          loading: saving,
         }}
-        secondaryActions={[{ content: 'Cancel', onAction: () => setIsCreateOpen(false) }]}
+        secondaryActions={[{ content: 'Cancel', onAction: () => setIsModalOpen(false) }]}
       >
         <Modal.Section>
           <FormLayout>
             <Select
-              label="Vendor"
-              options={vendors.map(v => ({ label: v.name, value: v.id }))}
-              value={selectedVendor}
-              onChange={setSelectedVendor}
+              label="Select Vendor"
+              options={vendorOptions}
+              value={vendorId}
+              onChange={setVendorId}
             />
             <TextField
-              label="Total Amount ($)"
+              label="Total Amount"
               type="number"
               value={total}
               onChange={setTotal}
-              autoComplete="off"
-            />
-          </FormLayout>
-        </Modal.Section>
-      </Modal>
-
-      <Modal
-        open={isReceiveOpen}
-        onClose={() => setIsReceiveOpen(false)}
-        title="Receive Inventory"
-        primaryAction={{
-          content: 'Receive',
-          onAction: handleReceivePo,
-          loading: submitting,
-        }}
-        secondaryActions={[{ content: 'Cancel', onAction: () => setIsReceiveOpen(false) }]}
-      >
-        <Modal.Section>
-          <FormLayout>
-            <Select
-              label="Product Variant"
-              options={variantOptions}
-              value={selectedVariant}
-              onChange={setSelectedVariant}
-            />
-            <TextField
-              label="Quantity Received"
-              type="number"
-              value={receiveQuantity}
-              onChange={setReceiveQuantity}
+              prefix="$"
               autoComplete="off"
             />
           </FormLayout>
