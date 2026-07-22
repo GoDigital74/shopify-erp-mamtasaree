@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
-import { shopifyApi, Session } from '@shopify/shopify-api';
+import { shopifyApi, Session, ApiVersion } from '@shopify/shopify-api'; // Imported ApiVersion
 import '@shopify/shopify-api/adapters/node';
 import prisma from './prisma';
 import productsRoute from './routes/products';
@@ -14,12 +14,14 @@ import { setupWebhooks } from './webhooks';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.set('trust proxy', 1);
+
+// FIX 1: CORS Configuration
+// Using 'origin: *' with 'credentials: true' will throw a fatal error in modern browsers.
 app.use(cors({
-  origin: '*', // Allows Vercel frontend communication
+  origin: process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : true, // Safely reflects origin for Vercel
   credentials: true,
 }));
-app.use(express.json());
-app.set('trust proxy', 1);
 
 // Initialize Shopify
 export const shopify = shopifyApi({
@@ -28,18 +30,15 @@ export const shopify = shopifyApi({
   scopes: (process.env.SHOPIFY_SCOPES || 'read_products,write_products').split(','),
   hostName: process.env.HOST ? process.env.HOST.replace(/^https?:\/\//, '') : 'localhost',
   hostScheme: 'https',
-  apiVersion: '2024-10' as any,
+  apiVersion: ApiVersion.October24, // FIX 2: Replaced '2024-10' as any with strict type
   isEmbeddedApp: true,
 });
 
 setupWebhooks();
 
-// Root route to replace "Cannot GET /"
-app.get('/', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'ok', message: 'iNext ERP Express Backend is Running!' });
-});
-
-// Webhook endpoint
+// FIX 3: Webhook endpoint MUST be defined BEFORE app.use(express.json())
+// Express parses the body sequentially. If express.json() runs first, it destroys 
+// the raw buffer that Shopify requires to calculate the HMAC security signature.
 app.post(
   '/api/webhooks',
   express.text({ type: '*/*' }),
@@ -58,6 +57,14 @@ app.post(
     }
   }
 );
+
+// NOW we can apply the JSON parser for the rest of the standard REST routes
+app.use(express.json());
+
+// Root route
+app.get('/', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok', message: 'iNext ERP Express Backend is Running!' });
+});
 
 // OAuth routes
 app.get('/api/auth', async (req: Request, res: Response) => {
@@ -118,7 +125,7 @@ app.get('/api/auth/callback', async (req: Request, res: Response) => {
   }
 });
 
-// Authentication Middleware with Fallback for empty DB
+// Authentication Middleware
 export const verifyShopifyToken = async (req: Request, res: Response, next: NextFunction) => {
   if (process.env.SHOPIFY_ADMIN_TOKEN && process.env.SHOPIFY_SHOP_DOMAIN) {
     res.locals.shopifySession = new Session({
@@ -144,7 +151,6 @@ export const verifyShopifyToken = async (req: Request, res: Response, next: Next
     if (rawSession) {
       res.locals.shopifySession = new Session(rawSession as any);
     } else {
-      // Fallback if Session table is empty in fresh DB
       res.locals.shopifySession = new Session({
         id: 'standalone_session',
         shop: process.env.SHOPIFY_SHOP_DOMAIN || 'mamta-saree-n6y5eqfn.myshopify.com',

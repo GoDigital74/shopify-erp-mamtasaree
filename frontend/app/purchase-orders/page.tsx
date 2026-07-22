@@ -4,10 +4,34 @@ import { useEffect, useState } from 'react';
 import { Page, Card, DataTable, BlockStack, Button, Modal, Select, TextField, FormLayout, Badge } from '@shopify/polaris';
 import { authenticatedFetch } from '@/lib/api';
 
+interface Vendor {
+  id: string;
+  name: string;
+}
+
+interface ProductVariant {
+  id: string;
+  title: string;
+}
+
+interface Product {
+  id: string;
+  title: string;
+  variants: ProductVariant[];
+}
+
+interface PurchaseOrder {
+  id: string;
+  vendor?: { name: string };
+  total: number;
+  status: string;
+  createdAt: string;
+}
+
 export default function PurchaseOrdersPage() {
-  const [pos, setPos] = useState<any[]>([]);
-  const [vendors, setVendors] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
+  const [pos, setPos] = useState<PurchaseOrder[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Modal states
@@ -38,26 +62,33 @@ export default function PurchaseOrdersPage() {
       ]);
       
       if (poRes.ok) setPos(await poRes.json());
+      
       if (vendorRes.ok) {
-        const vData = await vendorRes.json();
+        const vData: Vendor[] = await vendorRes.json();
         setVendors(vData);
-        if (vData.length > 0) setSelectedVendor(vData[0].id);
+        // Safely set default selection if empty
+        if (vData.length > 0 && !selectedVendor) {
+          setSelectedVendor(vData[0].id);
+        }
       }
+
       if (prodRes.ok) {
-        const pData = await prodRes.json();
+        const pData: Product[] = await prodRes.json();
         setProducts(pData);
-        // Find first variant for default selection
         const firstVar = pData[0]?.variants?.[0]?.id;
-        if (firstVar) setSelectedVariant(firstVar);
+        if (firstVar && !selectedVariant) {
+          setSelectedVariant(firstVar);
+        }
       }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to load purchase orders data', e);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreatePo = async () => {
+    if (!selectedVendor || !total) return;
     setSubmitting(true);
     try {
       const res = await authenticatedFetch('/api/purchase-orders', {
@@ -71,19 +102,20 @@ export default function PurchaseOrdersPage() {
         fetchData();
       }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to create purchase order', e);
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleReceivePo = async () => {
+    if (!selectedPo || !selectedVariant || !receiveQuantity) return;
     setSubmitting(true);
     try {
       const res = await authenticatedFetch(`/api/purchase-orders/${selectedPo}/receive`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ variantId: selectedVariant, quantity: parseInt(receiveQuantity) }),
+        body: JSON.stringify({ variantId: selectedVariant, quantity: parseInt(receiveQuantity, 10) }),
       });
       if (res.ok) {
         setIsReceiveOpen(false);
@@ -91,7 +123,7 @@ export default function PurchaseOrdersPage() {
         fetchData();
       }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to receive inventory', e);
     } finally {
       setSubmitting(false);
     }
@@ -100,16 +132,16 @@ export default function PurchaseOrdersPage() {
   const rows = pos.map((po) => [
     po.id.substring(0, 8),
     po.vendor?.name || 'Unknown',
-    `$${po.total.toFixed(2)}`,
-    <Badge tone={po.status === 'received' ? 'success' : 'attention'}>{po.status}</Badge>,
+    `$${(po.total || 0).toFixed(2)}`,
+    <Badge key={po.id} tone={po.status === 'received' ? 'success' : 'attention'}>{po.status}</Badge>,
     new Date(po.createdAt).toLocaleDateString(),
     po.status !== 'received' ? (
-      <Button size="micro" onClick={() => { setSelectedPo(po.id); setIsReceiveOpen(true); }}>Receive</Button>
+      <Button size="micro" key={`btn-${po.id}`} onClick={() => { setSelectedPo(po.id); setIsReceiveOpen(true); }}>Receive</Button>
     ) : null
   ]);
 
   const variantOptions = products.flatMap(p => 
-    (p.variants || []).map((v: any) => ({
+    (p.variants || []).map((v) => ({
       label: `${p.title} - ${v.title}`,
       value: v.id
     }))
@@ -129,6 +161,7 @@ export default function PurchaseOrdersPage() {
             columnContentTypes={['text', 'text', 'numeric', 'text', 'text', 'text']}
             headings={['PO ID', 'Vendor', 'Total', 'Status', 'Date', 'Action']}
             rows={rows}
+            loading={loading}
           />
         </Card>
       </BlockStack>
@@ -195,3 +228,4 @@ export default function PurchaseOrdersPage() {
     </Page>
   );
 }
+
