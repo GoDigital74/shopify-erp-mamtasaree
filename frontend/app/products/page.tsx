@@ -84,7 +84,8 @@ export default function ProductsPage() {
                       <Button
                         tone="critical"
                         variant="plain"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e?.stopPropagation?.();
                           if (confirm('Are you sure you want to delete this product from Shopify?')) {
                             authenticatedFetch(`/api/products/${id}`, { method: 'DELETE' })
                               .then(() => window.location.reload());
