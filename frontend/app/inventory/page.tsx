@@ -43,11 +43,11 @@ export default function InventoryPage() {
         <IndexTable.Cell>
           <Badge tone="info">{sku}</Badge>
         </IndexTable.Cell>
-        <IndexTable.Cell>
-          <Badge tone={inv.quantity > 0 ? 'success' : 'critical'}>
-            {inv.quantity} in stock
-          </Badge>
-        </IndexTable.Cell>
+       <IndexTable.Cell>
+            <Badge tone={inv.quantity > 0 ? 'success' : 'critical'}>
+              {`${inv.quantity} in stock`}
+            </Badge>
+          </IndexTable.Cell>
         <IndexTable.Cell>
           {new Date(inv.updatedAt).toLocaleDateString()}
         </IndexTable.Cell>
