@@ -1,7 +1,7 @@
 'use client';
-export const dynamic = "force-dynamic";
+
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import {
   Page,
   Layout,
@@ -17,7 +17,8 @@ import {
 } from '@shopify/polaris';
 import { authenticatedFetch } from '@/lib/api';
 
-export default function DashboardPage() {
+// 1. Move the main logic into a child component
+function DashboardContent() {
   const searchParams = useSearchParams();
   const shop = searchParams.get('shop');
   
@@ -170,5 +171,22 @@ export default function DashboardPage() {
         </Layout>
       </BlockStack>
     </Page>
+  );
+}
+
+// 2. Wrap the child component in a Suspense boundary for the default export
+export default function DashboardPage() {
+  return (
+    <Suspense 
+      fallback={
+        <Page>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+            <Spinner accessibilityLabel="Loading Dashboard" size="large" />
+          </div>
+        </Page>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }
