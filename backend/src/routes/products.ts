@@ -29,82 +29,38 @@ router.post('/', async (req: Request, res: Response) => {
     const session = res.locals.shopifySession;
     const { title, description, price, sku } = req.body;
 
-    const client = new shopify.clients.Graphql({ session });
+    const client = new shopify.clients.Rest({ session });
     
-    const createQuery = `
-      mutation productCreate($input: ProductInput!) {
-        productCreate(input: $input) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 1) {
-              edges {
-                node {
-                  id
-                }
-              }
-            }
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
-
-    const createVariables = {
-      input: {
+    // Structure the payload for the REST API
+    const productPayload: any = {
+      product: {
         title: title,
-        descriptionHtml: description
+        body_html: description,
+        status: req.body.status || 'active', // optional status from frontend
+        variants: [
+          {
+            price: price.toString(),
+            sku: sku || ""
+          }
+        ]
       }
     };
 
-    const createResponse = await client.request(createQuery, { variables: createVariables });
-    const productData = (createResponse.data as any).productCreate;
-
-    if (productData.userErrors && productData.userErrors.length > 0) {
-      return res.status(400).json({ errors: productData.userErrors });
+    // If an image URL is provided, attach it
+    if (req.body.imageUrl) {
+      productPayload.product.images = [
+        { src: req.body.imageUrl }
+      ];
     }
 
-    const shopifyProduct = productData.product;
-    const defaultVariantId = shopifyProduct.variants.edges[0].node.id;
+    const response = await client.post({
+      path: 'products',
+      data: productPayload,
+      type: 'application/json'
+    });
 
-    // 2. Update the default variant with price and SKU
-    const variantQuery = `
-      mutation productVariantUpdate($input: ProductVariantInput!) {
-        productVariantUpdate(input: $input) {
-          productVariant {
-            id
-            price
-            sku
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
-
-    const variantVariables = {
-      input: {
-        id: defaultVariantId,
-        price: price.toString(),
-        sku: sku || ""
-      }
-    };
-
-    const variantResponse = await client.request(variantQuery, { variables: variantVariables });
-    const variantData = (variantResponse.data as any).productVariantUpdate;
-
-    if (variantData.userErrors && variantData.userErrors.length > 0) {
-      console.error("Variant update warnings/errors:", variantData.userErrors);
-    }
-
-    const finalVariant = variantData.productVariant || { id: defaultVariantId, price: price.toString(), sku: sku };
+    const shopifyProduct = (response.body as any).product;
+    const shopifyVariant = shopifyProduct.variants[0];
 
     // Retrieve shop ID
     const shop = await prisma.shop.findUnique({ where: { domain: session.shop } });
@@ -114,16 +70,17 @@ router.post('/', async (req: Request, res: Response) => {
     const newProduct = await prisma.product.create({
       data: {
         shopId: shop.id,
-        shopifyId: shopifyProduct.id,
+        shopifyId: `gid://shopify/Product/${shopifyProduct.id}`,
         title: shopifyProduct.title,
         handle: shopifyProduct.handle,
-        status: shopifyProduct.status || "ACTIVE",
+        status: shopifyProduct.status ? shopifyProduct.status.toUpperCase() : "ACTIVE",
+        imageUrl: shopifyProduct.image?.src || null,
         variants: {
           create: {
-            shopifyId: finalVariant.id,
-            title: "Default Title",
-            sku: finalVariant.sku || "",
-            price: parseFloat(finalVariant.price || "0"),
+            shopifyId: `gid://shopify/ProductVariant/${shopifyVariant.id}`,
+            title: shopifyVariant.title || "Default Title",
+            sku: shopifyVariant.sku || "",
+            price: parseFloat(shopifyVariant.price || "0"),
             inventory: {
               create: {
                 quantity: 0
