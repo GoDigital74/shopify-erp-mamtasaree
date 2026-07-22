@@ -30,6 +30,9 @@ export async function syncProducts(session: Session) {
               title
               handle
               status
+              featuredImage {
+                url
+              }
               variants(first: 10) {
                 edges {
                   node {
@@ -57,6 +60,7 @@ export async function syncProducts(session: Session) {
 
     for (const edge of productsData.edges) {
       const productNode = edge.node;
+      const imageUrl = productNode.featuredImage?.url || null;
 
       const product = await prisma.product.upsert({
         where: { shopifyId: productNode.id },
@@ -64,6 +68,7 @@ export async function syncProducts(session: Session) {
           title: productNode.title,
           handle: productNode.handle,
           status: productNode.status,
+          imageUrl: imageUrl,
         },
         create: {
           shopId: shopRecord.id,
@@ -71,6 +76,7 @@ export async function syncProducts(session: Session) {
           title: productNode.title,
           handle: productNode.handle,
           status: productNode.status,
+          imageUrl: imageUrl,
         },
       });
 

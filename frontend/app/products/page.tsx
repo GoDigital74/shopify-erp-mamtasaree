@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Page, Layout, Card, ResourceList, ResourceItem, Text, SkeletonPage, SkeletonBodyText, InlineStack, BlockStack, Button } from '@shopify/polaris';
+import { Page, Layout, Card, ResourceList, ResourceItem, Text, SkeletonPage, SkeletonBodyText, InlineStack, BlockStack, Button, Avatar } from '@shopify/polaris';
 import { authenticatedFetch } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
@@ -50,10 +50,20 @@ export default function ProductsPage() {
               resourceName={{ singular: 'product', plural: 'products' }}
               items={products}
               renderItem={(item) => {
-                const { id, title, variants } = item;
+                const { id, title, variants, imageUrl } = item;
                 const variantCount = variants?.length || 0;
+                
+                const media = (
+                  <Avatar customer size="md" name={title} source={imageUrl || undefined} />
+                );
+
                 return (
-                  <ResourceItem id={id} accessibilityLabel={`View details for ${title}`} url="#">
+                  <ResourceItem 
+                    id={id} 
+                    media={media}
+                    url={`/products/${id}`}
+                    accessibilityLabel={`View details for ${title}`}
+                  >
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
                         <Text variant="bodyMd" fontWeight="bold" as="h3">{title}</Text>

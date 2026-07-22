@@ -9,6 +9,7 @@ import syncRoutes from './routes/sync';
 import vendorsRoute from './routes/vendors';
 import purchaseOrdersRoute from './routes/purchase-orders';
 import analyticsRoute from './routes/analytics';
+import customersRoute from './routes/customers';
 import { setupWebhooks } from './webhooks';
 
 const app = express();

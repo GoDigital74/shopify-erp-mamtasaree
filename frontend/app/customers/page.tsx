@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Page, Layout, Card, IndexTable, Text, Badge, Spinner, BlockStack } from '@shopify/polaris';
+import { Page, Layout, Card, IndexTable, Text, Spinner, Badge } from '@shopify/polaris';
 import { authenticatedFetch } from '@/lib/api';
 
 export default function CustomersPage() {
@@ -17,7 +17,7 @@ export default function CustomersPage() {
           setCustomers(data);
         }
       } catch (err) {
-        console.error('Failed to fetch customers', err);
+        console.error('Failed to load customers', err);
       } finally {
         setLoading(false);
       }
@@ -25,33 +25,24 @@ export default function CustomersPage() {
     fetchCustomers();
   }, []);
 
-  const rowMarkup = customers.map((customer, index) => {
-    const fullName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown Customer';
-    
-    return (
-      <IndexTable.Row id={customer.id} key={customer.id} position={index}>
-        <IndexTable.Cell>
-          <Text variant="bodyMd" fontWeight="bold" as="span">
-            {fullName}
-          </Text>
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          {customer.email || 'No email provided'}
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          <Text variant="bodySm" tone="subdued" as="span">
-            {customer.shopifyId?.split('/').pop() || customer.id.slice(0, 8)}
-          </Text>
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          {new Date(customer.createdAt).toLocaleDateString()}
-        </IndexTable.Cell>
-      </IndexTable.Row>
-    );
-  });
+  const rowMarkup = customers.map((customer, index) => (
+    <IndexTable.Row id={customer.id} key={customer.id} position={index}>
+      <IndexTable.Cell>
+        <Text variant="bodyMd" fontWeight="bold" as="span">
+          {customer.firstName} {customer.lastName}
+        </Text>
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        {customer.email || 'No email'}
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        {new Date(customer.createdAt).toLocaleDateString()}
+      </IndexTable.Cell>
+    </IndexTable.Row>
+  ));
 
   return (
-    <Page title="Customer Directory">
+    <Page title="Customers">
       <Layout>
         <Layout.Section>
           <Card padding="0">
@@ -66,8 +57,7 @@ export default function CustomersPage() {
                 headings={[
                   { title: 'Name' },
                   { title: 'Email' },
-                  { title: 'Customer ID' },
-                  { title: 'Joined Date' },
+                  { title: 'Added Date' },
                 ]}
                 selectable={false}
               >

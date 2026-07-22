@@ -31,9 +31,9 @@ router.post('/', async (req: Request, res: Response) => {
 
     const client = new shopify.clients.Graphql({ session });
     
-    const query = `
-      mutation productSet($input: ProductSetInput!) {
-        productSet(input: $input) {
+    const createQuery = `
+      mutation productCreate($input: ProductInput!) {
+        productCreate(input: $input) {
           product {
             id
             title
@@ -43,8 +43,6 @@ router.post('/', async (req: Request, res: Response) => {
               edges {
                 node {
                   id
-                  price
-                  sku
                 }
               }
             }
@@ -57,28 +55,56 @@ router.post('/', async (req: Request, res: Response) => {
       }
     `;
 
-    const variables = {
+    const createVariables = {
       input: {
         title: title,
-        descriptionHtml: description,
-        variants: [
-          {
-            price: price.toString(),
-            sku: sku
-          }
-        ]
+        descriptionHtml: description
       }
     };
 
-    const response = await client.request(query, { variables });
-    const productData = (response.data as any).productSet;
+    const createResponse = await client.request(createQuery, { variables: createVariables });
+    const productData = (createResponse.data as any).productCreate;
 
     if (productData.userErrors && productData.userErrors.length > 0) {
       return res.status(400).json({ errors: productData.userErrors });
     }
 
     const shopifyProduct = productData.product;
-    const shopifyVariant = shopifyProduct.variants.edges[0].node;
+    const defaultVariantId = shopifyProduct.variants.edges[0].node.id;
+
+    // 2. Update the default variant with price and SKU
+    const variantQuery = `
+      mutation productVariantUpdate($input: ProductVariantInput!) {
+        productVariantUpdate(input: $input) {
+          productVariant {
+            id
+            price
+            sku
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const variantVariables = {
+      input: {
+        id: defaultVariantId,
+        price: price.toString(),
+        sku: sku || ""
+      }
+    };
+
+    const variantResponse = await client.request(variantQuery, { variables: variantVariables });
+    const variantData = (variantResponse.data as any).productVariantUpdate;
+
+    if (variantData.userErrors && variantData.userErrors.length > 0) {
+      console.error("Variant update warnings/errors:", variantData.userErrors);
+    }
+
+    const finalVariant = variantData.productVariant || { id: defaultVariantId, price: price.toString(), sku: sku };
 
     // Retrieve shop ID
     const shop = await prisma.shop.findUnique({ where: { domain: session.shop } });
@@ -91,13 +117,13 @@ router.post('/', async (req: Request, res: Response) => {
         shopifyId: shopifyProduct.id,
         title: shopifyProduct.title,
         handle: shopifyProduct.handle,
-        status: shopifyProduct.status,
+        status: shopifyProduct.status || "ACTIVE",
         variants: {
           create: {
-            shopifyId: shopifyVariant.id,
+            shopifyId: finalVariant.id,
             title: "Default Title",
-            sku: shopifyVariant.sku,
-            price: parseFloat(shopifyVariant.price || "0"),
+            sku: finalVariant.sku || "",
+            price: parseFloat(finalVariant.price || "0"),
             inventory: {
               create: {
                 quantity: 0
