@@ -94,7 +94,7 @@ export default function ProductDetailsPage() {
                       <Text as="p">
                         <strong>Inventory:</strong>{' '}
                         {variant.inventory?.quantity > 0 ? (
-                          <Badge tone="success">{variant.inventory.quantity} in stock</Badge>
+                          <Badge tone="success">{`${variant.inventory.quantity} in stock`}</Badge>
                         ) : (
                           <Badge tone="critical">Out of stock</Badge>
                         )}
