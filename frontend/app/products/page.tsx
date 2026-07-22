@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import { Page, Layout, Card, ResourceList, ResourceItem, Text, SkeletonPage, SkeletonBodyText, InlineStack, BlockStack } from '@shopify/polaris';
 import { authenticatedFetch } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter(); // <-- Added router initialization
 
   useEffect(() => {
     async function fetchProducts() {
