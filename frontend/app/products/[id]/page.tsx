@@ -53,11 +53,23 @@ export default function ProductDetailsPage() {
       backAction={{ content: 'Products', onAction: () => router.push('/products') }}
       primaryAction={{
         content: 'Edit in Shopify',
-        onAction: () => {
-          // Construct the Shopify Admin URL based on shopId and shopifyId
-          // Extracts the numeric ID from the gid://shopify/Product/123456789 format
-          const shopifyNumericId = product.shopifyId.split('/').pop();
-          window.open(`https://admin.shopify.com/products/${shopifyNumericId}`, '_blank');
+        onAction: async () => {
+          // Get the numeric ID from the GID format: gid://shopify/Product/12345678
+          const shopifyNumericId = product.shopifyId?.split('/').pop();
+          if (!shopifyNumericId) return;
+
+          // Fetch the shop domain from the backend health endpoint
+          // then build the correct admin URL: https://{myshopify-domain}/admin/products/{id}
+          try {
+            const res = await authenticatedFetch('/api/health');
+            const data = await res.json();
+            const shopDomain = data.shop; // e.g. mamta-saree-n6y5eqfn.myshopify.com
+            // This URL automatically redirects to the correct admin.shopify.com URL
+            window.open(`https://${shopDomain}/admin/products/${shopifyNumericId}`, '_blank');
+          } catch {
+            // Fallback: open generic admin search
+            window.open(`https://admin.shopify.com`, '_blank');
+          }
         },
       }}
     >
