@@ -66,7 +66,6 @@ export default function PurchaseOrdersPage() {
       if (vendorRes.ok) {
         const vData: Vendor[] = await vendorRes.json();
         setVendors(vData);
-        // Safely set default selection if empty
         if (vData.length > 0 && !selectedVendor) {
           setSelectedVendor(vData[0].id);
         }
@@ -161,7 +160,6 @@ export default function PurchaseOrdersPage() {
             columnContentTypes={['text', 'text', 'numeric', 'text', 'text', 'text']}
             headings={['PO ID', 'Vendor', 'Total', 'Status', 'Date', 'Action']}
             rows={rows}
-            loading={loading}
           />
         </Card>
       </BlockStack>
@@ -228,4 +226,3 @@ export default function PurchaseOrdersPage() {
     </Page>
   );
 }
-
