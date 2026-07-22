@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 export default function ProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter(); // <-- Added router initialization
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchProducts() {
@@ -53,7 +53,7 @@ export default function ProductsPage() {
                 const { id, title, variants } = item;
                 const variantCount = variants?.length || 0;
                 return (
-                  <ResourceItem id={id} accessibilityLabel={`View details for ${title}`} onClick={() => {}}>
+                  <ResourceItem id={id} accessibilityLabel={`View details for ${title}`} url="#">
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
                         <Text variant="bodyMd" fontWeight="bold" as="h3">{title}</Text>
@@ -63,9 +63,8 @@ export default function ProductsPage() {
                       <Button 
                         tone="critical" 
                         variant="plain" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if(confirm("Are you sure you want to delete this product from Shopify?")) {
+                        onClick={() => {
+                          if (confirm("Are you sure you want to delete this product from Shopify?")) {
                             authenticatedFetch(`/api/products/${id}`, { method: 'DELETE' })
                               .then(() => window.location.reload());
                           }
@@ -84,4 +83,3 @@ export default function ProductsPage() {
     </Page>
   );
 }
-
