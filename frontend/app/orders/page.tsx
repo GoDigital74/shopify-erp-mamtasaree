@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Page, Layout, Card, ResourceList, ResourceItem, Text, Badge, SkeletonPage, SkeletonBodyText, BlockStack, InlineStack } from '@shopify/polaris';
+import { Page, Layout, Card, IndexTable, Text, Badge, Spinner, BlockStack } from '@shopify/polaris';
 import { authenticatedFetch } from '@/lib/api';
 
 export default function OrdersPage() {
@@ -17,7 +17,7 @@ export default function OrdersPage() {
           setOrders(data);
         }
       } catch (err) {
-        console.error('Failed to load orders', err);
+        console.error('Failed to fetch orders', err);
       } finally {
         setLoading(false);
       }
@@ -25,66 +25,55 @@ export default function OrdersPage() {
     fetchOrders();
   }, []);
 
-  if (loading) {
-    return (
-      <SkeletonPage title="Orders">
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <SkeletonBodyText lines={5} />
-            </Card>
-          </Layout.Section>
-        </Layout>
-      </SkeletonPage>
-    );
-  }
+  const rowMarkup = orders.map((order, index) => (
+    <IndexTable.Row id={order.id} key={order.id} position={index}>
+      <IndexTable.Cell>
+        <Text variant="bodyMd" fontWeight="bold" as="span">
+          {order.shopifyId?.split('/').pop() || order.id.slice(0, 8)}
+        </Text>
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        ${parseFloat(order.totalPrice).toFixed(2)}
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        <Badge tone={order.status === 'paid' || order.status === 'success' ? 'success' : 'attention'}>
+          {order.status}
+        </Badge>
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        {order.orderItems?.length || 0} items
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        {new Date(order.createdAt).toLocaleDateString()}
+      </IndexTable.Cell>
+    </IndexTable.Row>
+  ));
 
   return (
     <Page title="Orders">
       <Layout>
         <Layout.Section>
           <Card padding="0">
-            <ResourceList
-              resourceName={{ singular: 'order', plural: 'orders' }}
-              items={orders}
-              renderItem={(item) => {
-                // Note: Adjust these destructured fields if your backend returns different property names
-                const { id, name, totalPrice, financialStatus, fulfillmentStatus, createdAt } = item;
-                
-                return (
-                  <ResourceItem id={id} url="#" accessibilityLabel={`View details for order ${name}`}>
-                    <InlineStack align="space-between" blockAlign="center">
-                      
-                      {/* Left Side: Order Name and Date */}
-                      <BlockStack gap="100">
-                        <Text variant="bodyMd" fontWeight="bold" as="h3">
-                          {name || `Order #${id}`}
-                        </Text>
-                        <Text variant="bodySm" tone="subdued" as="span">
-                          {createdAt ? new Date(createdAt).toLocaleDateString() : 'No date'}
-                        </Text>
-                      </BlockStack>
-                      
-                      {/* Right Side: Price and Status Badges */}
-                      <InlineStack gap="300" blockAlign="center">
-                        <Text variant="bodyMd" as="span" fontWeight="semibold">
-                          ${totalPrice || '0.00'}
-                        </Text>
-                        
-                        <Badge tone={financialStatus === 'paid' ? 'success' : 'warning'}>
-                          {financialStatus || 'Pending'}
-                        </Badge>
-                        
-                        <Badge tone={fulfillmentStatus === 'fulfilled' ? 'success' : 'attention'}>
-                          {fulfillmentStatus || 'Unfulfilled'}
-                        </Badge>
-                      </InlineStack>
-
-                    </InlineStack>
-                  </ResourceItem>
-                );
-              }}
-            />
+            {loading ? (
+              <div style={{ padding: '2rem', textAlign: 'center' }}>
+                <Spinner size="large" />
+              </div>
+            ) : (
+              <IndexTable
+                resourceName={{ singular: 'order', plural: 'orders' }}
+                itemCount={orders.length}
+                headings={[
+                  { title: 'Order ID' },
+                  { title: 'Total' },
+                  { title: 'Status' },
+                  { title: 'Items' },
+                  { title: 'Date' },
+                ]}
+                selectable={false}
+              >
+                {rowMarkup}
+              </IndexTable>
+            )}
           </Card>
         </Layout.Section>
       </Layout>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Page, Layout, Card, DataTable, SkeletonPage, SkeletonBodyText, Badge, BlockStack, Text } from '@shopify/polaris';
+import { Page, Layout, Card, IndexTable, Text, Badge, Spinner, BlockStack } from '@shopify/polaris';
 import { authenticatedFetch } from '@/lib/api';
 
 export default function InventoryPage() {
@@ -17,7 +17,7 @@ export default function InventoryPage() {
           setInventory(data);
         }
       } catch (err) {
-        console.error('Failed to load inventory', err);
+        console.error('Failed to fetch inventory', err);
       } finally {
         setLoading(false);
       }
@@ -25,44 +25,61 @@ export default function InventoryPage() {
     fetchInventory();
   }, []);
 
-  if (loading) {
+  const rowMarkup = inventory.map((inv, index) => {
+    const productTitle = inv.variant?.product?.title || 'Unknown Product';
+    const variantTitle = inv.variant?.title || 'Unknown Variant';
+    const sku = inv.variant?.sku || 'No SKU';
+    
     return (
-      <SkeletonPage title="Inventory">
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <SkeletonBodyText lines={5} />
-            </Card>
-          </Layout.Section>
-        </Layout>
-      </SkeletonPage>
+      <IndexTable.Row id={inv.id} key={inv.id} position={index}>
+        <IndexTable.Cell>
+          <Text variant="bodyMd" fontWeight="bold" as="span">
+            {productTitle}
+          </Text>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          {variantTitle}
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          <Badge tone="info">{sku}</Badge>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          <Badge tone={inv.quantity > 0 ? 'success' : 'critical'}>
+            {inv.quantity} in stock
+          </Badge>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          {new Date(inv.updatedAt).toLocaleDateString()}
+        </IndexTable.Cell>
+      </IndexTable.Row>
     );
-  }
-
-const rows = inventory.map((item) => [
-    item.productTitle || 'Unknown Product',
-    item.variantTitle || 'Default',
-    item.sku || 'N/A',
-    <Badge tone={item.quantity > 10 ? 'success' : item.quantity > 0 ? 'warning' : 'critical'} key={item.id}>
-      {`${item.quantity} in stock`}
-    </Badge>
-  ]);
+  });
 
   return (
     <Page title="Inventory Tracking">
       <Layout>
         <Layout.Section>
           <Card padding="0">
-            <BlockStack gap="400">
-              <div style={{ padding: '1rem' }}>
-                <Text as="h2" variant="headingMd">Stock Levels</Text>
+            {loading ? (
+              <div style={{ padding: '2rem', textAlign: 'center' }}>
+                <Spinner size="large" />
               </div>
-              <DataTable
-                columnContentTypes={['text', 'text', 'text', 'text']}
-                headings={['Product', 'Variant', 'SKU', 'Status']}
-                rows={rows}
-              />
-            </BlockStack>
+            ) : (
+              <IndexTable
+                resourceName={{ singular: 'inventory item', plural: 'inventory items' }}
+                itemCount={inventory.length}
+                headings={[
+                  { title: 'Product' },
+                  { title: 'Variant' },
+                  { title: 'SKU' },
+                  { title: 'Quantity' },
+                  { title: 'Last Updated' },
+                ]}
+                selectable={false}
+              >
+                {rowMarkup}
+              </IndexTable>
+            )}
           </Card>
         </Layout.Section>
       </Layout>

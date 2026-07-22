@@ -34,7 +34,13 @@ export default function ProductsPage() {
   }
 
   return (
-    <Page title="Products">
+    <Page 
+      title="Products"
+      primaryAction={{
+        content: 'Create Product',
+        onAction: () => router.push('/products/new'),
+      }}
+    >
       <Layout>
         <Layout.Section>
           <Card padding="0">

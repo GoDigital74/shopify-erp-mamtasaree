@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Page, Layout, Card, ResourceList, ResourceItem, Text, Avatar, SkeletonPage, SkeletonBodyText, BlockStack, InlineStack } from '@shopify/polaris';
+import { Page, Layout, Card, IndexTable, Text, Badge, Spinner, BlockStack } from '@shopify/polaris';
 import { authenticatedFetch } from '@/lib/api';
 
 export default function CustomersPage() {
@@ -17,7 +17,7 @@ export default function CustomersPage() {
           setCustomers(data);
         }
       } catch (err) {
-        console.error('Failed to load customers', err);
+        console.error('Failed to fetch customers', err);
       } finally {
         setLoading(false);
       }
@@ -25,52 +25,55 @@ export default function CustomersPage() {
     fetchCustomers();
   }, []);
 
-  if (loading) {
+  const rowMarkup = customers.map((customer, index) => {
+    const fullName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown Customer';
+    
     return (
-      <SkeletonPage title="Customers">
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <SkeletonBodyText lines={5} />
-            </Card>
-          </Layout.Section>
-        </Layout>
-      </SkeletonPage>
+      <IndexTable.Row id={customer.id} key={customer.id} position={index}>
+        <IndexTable.Cell>
+          <Text variant="bodyMd" fontWeight="bold" as="span">
+            {fullName}
+          </Text>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          {customer.email || 'No email provided'}
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          <Text variant="bodySm" tone="subdued" as="span">
+            {customer.shopifyId?.split('/').pop() || customer.id.slice(0, 8)}
+          </Text>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          {new Date(customer.createdAt).toLocaleDateString()}
+        </IndexTable.Cell>
+      </IndexTable.Row>
     );
-  }
+  });
 
   return (
-    <Page title="Customers">
+    <Page title="Customer Directory">
       <Layout>
         <Layout.Section>
           <Card padding="0">
-            <ResourceList
-              resourceName={{ singular: 'customer', plural: 'customers' }}
-              items={customers}
-              renderItem={(item) => {
-                const { id, firstName, lastName, email, ordersCount, totalSpent } = item;
-                const name = `${firstName || ''} ${lastName || ''}`.trim() || 'Unknown Customer';
-                const initials = name.split(' ').map((n: string) => n[0]).join('').substring(0, 2);
-
-                return (
-                  <ResourceItem id={id} url="#" accessibilityLabel={`View details for ${name}`}>
-                    <InlineStack align="space-between" blockAlign="center">
-                      <InlineStack gap="400" blockAlign="center">
-                        <Avatar customer size="md" name={name} initials={initials} />
-                        <BlockStack gap="100">
-                          <Text variant="bodyMd" fontWeight="bold" as="h3">{name}</Text>
-                          <Text variant="bodySm" tone="subdued" as="span">{email || 'No email provided'}</Text>
-                        </BlockStack>
-                      </InlineStack>
-                      <InlineStack gap="400" blockAlign="center">
-                        <Text variant="bodyMd" as="span">{ordersCount || 0} orders</Text>
-                        <Text variant="bodyMd" fontWeight="semibold" as="span">${totalSpent || '0.00'}</Text>
-                      </InlineStack>
-                    </InlineStack>
-                  </ResourceItem>
-                );
-              }}
-            />
+            {loading ? (
+              <div style={{ padding: '2rem', textAlign: 'center' }}>
+                <Spinner size="large" />
+              </div>
+            ) : (
+              <IndexTable
+                resourceName={{ singular: 'customer', plural: 'customers' }}
+                itemCount={customers.length}
+                headings={[
+                  { title: 'Name' },
+                  { title: 'Email' },
+                  { title: 'Customer ID' },
+                  { title: 'Joined Date' },
+                ]}
+                selectable={false}
+              >
+                {rowMarkup}
+              </IndexTable>
+            )}
           </Card>
         </Layout.Section>
       </Layout>

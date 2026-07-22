@@ -191,7 +191,14 @@ app.get('/api/health', verifyShopifyToken, async (req: Request, res: Response) =
   }
 });
 
+import ordersRoute from './routes/orders';
+import inventoryRoute from './routes/inventory';
+import customersRoute from './routes/customers';
+
 app.use('/api/products', verifyShopifyToken, productsRoute);
+app.use('/api/orders', verifyShopifyToken, ordersRoute);
+app.use('/api/inventory', verifyShopifyToken, inventoryRoute);
+app.use('/api/customers', verifyShopifyToken, customersRoute);
 app.use('/api/shopify/sync', verifyShopifyToken, syncRoutes);
 app.use('/api/vendors', verifyShopifyToken, vendorsRoute);
 app.use('/api/purchase-orders', verifyShopifyToken, purchaseOrdersRoute);
