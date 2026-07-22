@@ -39,12 +39,12 @@ export default function InventoryPage() {
     );
   }
 
-  const rows = inventory.map((item) => [
+const rows = inventory.map((item) => [
     item.productTitle || 'Unknown Product',
     item.variantTitle || 'Default',
     item.sku || 'N/A',
     <Badge tone={item.quantity > 10 ? 'success' : item.quantity > 0 ? 'warning' : 'critical'} key={item.id}>
-      {item.quantity.toString()} in stock
+      {`${item.quantity} in stock`}
     </Badge>
   ]);
 
